@@ -7,6 +7,10 @@ torch: 0.1.11
 torchvision
 matplotlib
 """
+import os 
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+
+
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -17,7 +21,7 @@ import matplotlib.pyplot as plt
 torch.manual_seed(1)    # reproducible
 
 # Hyper Parameters
-EPOCH = 5               # train the training data n times, to save time, we just train 1 epoch
+EPOCH = 1               # train the training data n times, to save time, we just train 1 epoch
 BATCH_SIZE = 50
 LR = 0.001              # learning rate
 DOWNLOAD_MNIST = False   # set to False if you have downloaded
@@ -87,6 +91,9 @@ class CNN(nn.Module):
 
 cnn = CNN()
 print(cnn)  # net architecture
+if torch.cuda.is_available():
+    print('hello')
+    cnn.cuda()
 
 # optimize all cnn parameters
 optimizer = torch.optim.Adam(cnn.parameters(), lr=LR)
@@ -121,9 +128,8 @@ plt.ion()
 for epoch in range(EPOCH):
     # gives batch data, normalize x when iterate train_loader
     for step, (x, y) in enumerate(train_loader):
-        b_x = Variable(x)   # batch x
-        b_y = Variable(y)   # batch y
-        print(b_x, b_y)
+        b_x = Variable(x.cuda())   # batch x
+        b_y = Variable(y.cuda())   # batch y
 
         output = cnn(b_x)[0]               # cnn output
         loss = loss_func(output, b_y)   # cross entropy loss
@@ -132,9 +138,9 @@ for epoch in range(EPOCH):
         optimizer.step()                # apply gradients
 
         if step % 50 == 0:
-            test_output, last_layer = cnn(test_x)
+            test_output, last_layer = cnn(test_x.cuda())
             pred_y = torch.max(test_output, 1)[1].data.squeeze()
-            accuracy = sum(pred_y == test_y) / float(test_y.size(0))
+            accuracy = sum(pred_y.cpu() == test_y) / float(test_y.size(0))
             print('Epoch: ', epoch, '| train loss: %.4f' %
                   loss.data[0], '| test accuracy: %.2f' % accuracy)
             if HAS_SK:
@@ -149,7 +155,7 @@ for epoch in range(EPOCH):
 plt.ioff()
 
 # print 10 predictions from test data
-test_output, _ = cnn(test_x[:10])
-pred_y = torch.max(test_output, 1)[1].data.numpy().squeeze()
+test_output, _ = cnn(test_x[:10].cuda())
+pred_y = torch.max(test_output, 1)[1].data.cpu().numpy().squeeze()
 print(pred_y, 'prediction number')
 print(test_y[:10].numpy(), 'real number')
